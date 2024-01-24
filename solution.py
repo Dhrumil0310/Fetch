@@ -41,27 +41,35 @@ def HealthCheck(endpoints):
 
     return results
 
-def calculateAvailability(results):
+def calculateAvailability(results, cumulativeResults):
     totalRequests = len(results)
     up_count = results.count('UP')
-    return round(100 * (up_count / totalRequests)) if totalRequests > 0 else 0
 
-def displayAvailability(availability):
-    for domain, percentage in availability.items():
-        print(f"{domain} has {percentage}% availability percentage")
+    cumulativeResults['totalRequests'] += totalRequests
+    cumulativeResults['up_count'] += up_count
+
+    print("TotalRequests =", cumulativeResults['totalRequests'], "UpCount =", cumulativeResults['up_count'])
+
+    return round(100 * (cumulativeResults['up_count'] / cumulativeResults['totalRequests'])) if cumulativeResults['totalRequests'] > 0 else 0
+
+def displayCumulativeAvailability(cumulativeResults, domain):
+    cumulative_percentage = round(100 * (cumulativeResults['up_count'] / cumulativeResults['totalRequests'])) if cumulativeResults['totalRequests'] > 0 else 0
+    print(f"{domain} has cumulative availability: {cumulative_percentage}%")
 
 def main(file_path):
     try:
+        cumulativeResults = {}
+
         while True:
             AllEndpoints = readConfig(file_path)
             group = groupEndpoints(AllEndpoints)
-            availability = {}
 
             for domain, endpoints in group.items():
+                if domain not in cumulativeResults:
+                    cumulativeResults[domain] = {'totalRequests': 0, 'up_count': 0}
                 results = HealthCheck(endpoints)
-                x = calculateAvailability(results)
-                availability[domain] = x
-                displayAvailability({domain: x})
+                x = calculateAvailability(results, cumulativeResults[domain])
+                displayCumulativeAvailability(cumulativeResults[domain], domain)
 
             time.sleep(15)
     except KeyboardInterrupt:
